@@ -1,0 +1,10 @@
+android_sdk=/Users/wengzhipeng/Library/Android/sdk
+android_compile_sdk_version=22
+android_build_tools_version=22.0.1
+android_min_sdk_version=11
+android_target_sdk_version=22
+android_version_code=524
+android_version_name=5.2.4
+project_source_path=/Users/wengzhipeng/Workspace/
+project_output_path=/Users/wengzhipeng/Workspace/apk
+app_name=测试
