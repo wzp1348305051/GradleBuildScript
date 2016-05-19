@@ -1,0 +1,100 @@
+apply plugin: 'com.android.application'
+
+buildscript {
+    repositories {
+        maven{ url 'http://maven.oschina.net/content/groups/public/' }
+    }
+    dependencies {
+         classpath 'com.android.tools.build:gradle:1.5.0'
+    }
+}
+
+allprojects {
+    repositories {
+        jcenter()
+    }
+}
+
+buildscript {
+    System.properties['com.android.build.gradle.overrideVersionCheck'] = 'true'
+}
+
+android {
+    compileSdkVersion 22
+    buildToolsVersion "22.0.1"
+
+    defaultConfig {
+        applicationId "fm.qingting.qtradio"
+        minSdkVersion 11
+        targetSdkVersion 22
+        versionCode 523
+        versionName "5.2.3"
+        multiDexEnabled = true
+    }
+
+    sourceSets {
+        main {
+            manifest.srcFile 'AndroidManifest.xml'
+            aidl.srcDirs = ['src']
+            java.srcDirs = ['src']
+            res.srcDirs = ['res']
+            assets.srcDirs = ['assets']
+            jniLibs.srcDirs = ['libs']
+        }
+    }
+
+    dexOptions {
+        incremental true
+        javaMaxHeapSize "4g"
+    }
+
+    packagingOptions {
+        exclude 'META-INF/LICENSE.txt'
+    }
+
+    signingConfigs {
+        release {
+            keyAlias 'xxx'
+            keyPassword ‘xxx’
+            storeFile file(‘xxx’)
+            storePassword ‘xxx’
+        }
+    }
+
+    lintOptions {
+        abortOnError false
+    }
+
+    buildTypes {
+        debug {
+            debuggable true
+            minifyEnabled false
+            signingConfig signingConfigs.release
+        }
+        release {
+            minifyEnabled true
+            shrinkResources true
+            signingConfig signingConfigs.release
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard.cfg'
+            applicationVariants.all { variant ->
+                variant.outputs.each { output ->
+                    def alignedOutputFile = output.outputFile
+                    def unalignedOutputFile = output.packageApplication.outputFile
+                    if (variant.buildType.zipAlignEnabled) {
+                        def fileName = "${defaultConfig.name}_${defaultConfig.versionName}.apk"
+                        output.outputFile = new File(alignedOutputFile.parent, fileName)
+                    } else {
+                        def fileName = "${defaultConfig.name}_${defaultConfig.versionName}_unaligned.apk"
+                        output.packageApplication.outputFile = new File(unalignedOutputFile.parent, fileName)
+                    }
+                 }
+            }
+        }
+    }
+
+}
+
+dependencies {
+    compile fileTree(include: ['*.jar'], dir: 'libs')
+    compile 'com.android.support:multidex:1.0.1'
+}
