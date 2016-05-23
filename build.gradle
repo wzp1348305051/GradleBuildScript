@@ -81,15 +81,19 @@ android {
                     def alignedOutputFile = output.outputFile
                     def unalignedOutputFile = output.packageApplication.outputFile
                     if (variant.buildType.zipAlignEnabled) {
-                        def fileName = "${defaultConfig.name}_${defaultConfig.versionName}.apk"
+                        def fileName = "${variant.productFlavors[0].name}_${defaultConfig.versionName}.apk"
                         output.outputFile = new File(alignedOutputFile.parent, fileName)
                     } else {
-                        def fileName = "${defaultConfig.name}_${defaultConfig.versionName}_unaligned.apk"
+                        def fileName = "${variant.productFlavors[0].name}_${defaultConfig.versionName}_unaligned.apk"
                         output.packageApplication.outputFile = new File(unalignedOutputFile.parent, fileName)
                     }
                  }
             }
         }
+    }
+
+    productFlavors {
+        customizedChannel {}
     }
 
 }
