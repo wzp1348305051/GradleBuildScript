@@ -1,11 +1,11 @@
 #!/bin/bash
 
 #读取build_config文件，初始化脚本中全局变量
-function load_build_config() {
+function init_build_config() {
 	for line in `cat ${build_path}/build_config`; #按行读取配置文件
 	do 
 		tmpVars=(${line//=/${seperator}}) 
-		len=${#tmpVars[@]} 
+		# len=${#tmpVars[@]} 
 		if [ ${tmpVars[0]} == "android_sdk" ];then
 			android_sdk=${tmpVars[1]}
         elif [ ${tmpVars[0]} == "android_compile_sdk_version" ];then
@@ -33,18 +33,32 @@ function load_build_config() {
 #clean工程
 function replace_project_config() {
 	# clean工程
-	if [ -d ${project_source_path}/build/ ]; then
-		rm -rf ${project_source_path}/build/
+	if [ -d ${project_source_path}/build ]; then
+		rm -rf ${project_source_path}/build
 	fi
-	if [ -d ${project_source_path}/gen/ ]; then
-		rm -rf ${project_source_path}/gen/
+	if [ -d ${project_source_path}/gen ]; then
+		rm -rf ${project_source_path}/gen
 	fi
+	if [ -d ${project_output_path} ]; then
+		rm -rf ${project_output_path}
+	fi
+
+	# cpoy source code to temp directories
+	global_project_temp_source_path=${project_output_path}/temp_source
+	if [ ! -d ${global_project_temp_source_path} ]; then
+		mkdir -p ${global_project_temp_source_path}
+	fi
+	cp -r ${project_source_path}/ ${global_project_temp_source_path}/
+
+	global_project_strings_path=${global_project_temp_source_path}/res/values/strings.xml
+	global_project_manifest_path=${global_project_temp_source_path}/AndroidManifest.xml
+	global_project_build_gradle_path=${global_project_temp_source_path}/build.gradle
 
 	# replace local.properties 
 	build_local_properties=${build_path}/local.properties
-	project_local_properties=${project_source_path}/local.properties
+	project_local_properties=${global_project_temp_source_path}/local.properties
 	if [ -f ${project_local_properties} ]; then
-		rm -rf ${project_local_properties}
+		rm -f ${project_local_properties}
 	fi
 	cp ${build_local_properties} ${project_local_properties}
 	sed -i "" "/sdk.dir/d" ${project_local_properties}
@@ -52,56 +66,81 @@ function replace_project_config() {
 	
 	# replace gradle.properties
 	build_gradle_properties=${build_path}/gradle.properties
-	project_gradle_properties=${project_source_path}/gradle.properties
+	project_gradle_properties=${global_project_temp_source_path}/gradle.properties
 	if [ -f ${project_gradle_properties} ]; then
-		rm -rf ${project_gradle_properties}
+		rm -f ${project_gradle_properties}
 	fi
 	cp ${build_gradle_properties} ${project_gradle_properties}
 	
 	# replace gradle
-	build_gradle_dir=${build_path}/gradle/
-	project_gradle_dir=${project_source_path}/gradle/
-	if [ -d ${project_gradle_dir} ]; then
-		rm -rf ${project_gradle_dir}
+	build_gradle_path=${build_path}/gradle/
+	project_gradle_path=${global_project_temp_source_path}/gradle/
+	if [ -d ${project_gradle_path} ]; then
+		rm -rf ${project_gradle_path}
 	fi
-	cp -r ${build_gradle_dir} ${project_gradle_dir}
+	cp -r ${build_gradle_path} ${project_gradle_path}
+
+	# replace res
+	cp -r ${build_path}/res ${global_project_temp_source_path}
 
 	# replace strings.xml
-	project_strings=${project_source_path}/res/values/strings.xml
-	sed -i "" "s/name=\"version\">.*</name=\"version\">Version：${android_version_name}</g" ${project_strings}
-	sed -i "" "s/name=\"code\">.*</name=\"code\">${android_version_name}</g" ${project_strings}
-	sed -i "" "s/name=\"internal_code\">.*</name=\"internal_code\">${android_version_name}.0</g" ${project_strings}
-	sed -i "" "s/name=\"app_name\">.*</name=\"app_name\">${app_name}</g" ${project_strings}
+	sed -i "" "s/name=\"version\">.*</name=\"version\">Version：${android_version_name}</g" ${global_project_strings_path}
+	sed -i "" "s/name=\"code\">.*</name=\"code\">${android_version_name}</g" ${global_project_strings_path}
+	sed -i "" "s/name=\"internal_code\">.*</name=\"internal_code\">${android_version_name}.0</g" ${global_project_strings_path}
+	sed -i "" "s/name=\"app_name\">.*</name=\"app_name\">${app_name}</g" ${global_project_strings_path}
 
 	# replace AndroidManifest.xml
-	project_manifest="${project_source_path}/AndroidManifest.xml"
-	sed -i "" "s/versionCode=\".*\"/versionCode=\"${android_version_code}\"/g" ${project_manifest}
-	sed -i "" "s/versionName=\".*\">/versionName=\"${android_version_name}\">/g" ${project_manifest}
+	sed -i "" "s/versionCode=\".*\"/versionCode=\"${android_version_code}\"/g" ${global_project_manifest_path}
+	sed -i "" "s/versionName=\".*\" >/versionName=\"${android_version_name}\" >/g" ${global_project_manifest_path}
 
 	# replace build.gradle
 	build_build_gradle=${build_path}/build.gradle
-	project_build_gradle=${project_source_path}/build.gradle
-	if [ -f ${project_build_gradle} ]; then
-		rm ${project_build_gradle}
+	if [ -f ${global_project_build_gradle_path} ]; then
+		rm ${global_project_build_gradle_path}
 	fi
-	cp ${build_build_gradle} ${project_build_gradle}
-	sed -i "" "s/compileSdkVersion .*/compileSdkVersion ${android_compile_sdk_version}/g" ${project_build_gradle}
-	sed -i "" "s/buildToolsVersion .*/buildToolsVersion \"${android_build_tools_version}\"/g" ${project_build_gradle}
-	sed -i "" "s/minSdkVersion .*/minSdkVersion ${android_min_sdk_version}/g" ${project_build_gradle}
-	sed -i "" "s/targetSdkVersion .*/targetSdkVersion ${android_target_sdk_version}/g" ${project_build_gradle}
-	sed -i "" "s/versionCode .*/versionCode ${android_version_code}/g" ${project_build_gradle}
-	sed -i "" "s/versionName .*/versionName \"${android_version_name}\"/g" ${project_build_gradle}
-
+	cp ${build_build_gradle} ${global_project_build_gradle_path}
+	sed -i "" "s/compileSdkVersion .*/compileSdkVersion ${android_compile_sdk_version}/g" ${global_project_build_gradle_path}
+	sed -i "" "s/buildToolsVersion .*/buildToolsVersion \"${android_build_tools_version}\"/g" ${global_project_build_gradle_path}
+	sed -i "" "s/minSdkVersion .*/minSdkVersion ${android_min_sdk_version}/g" ${global_project_build_gradle_path}
+	sed -i "" "s/targetSdkVersion .*/targetSdkVersion ${android_target_sdk_version}/g" ${global_project_build_gradle_path}
+	sed -i "" "s/versionCode .*/versionCode ${android_version_code}/g" ${global_project_build_gradle_path}
+	sed -i "" "s/versionName .*/versionName \"${android_version_name}\"/g" ${global_project_build_gradle_path}
+	sed -i "" "s/customizedChannel/${app_name}/g" ${global_project_build_gradle_path}
 }
 
-function assemble_project() {
-	if [ ! -d ${project_output_path} ]; then
-		mkdir -p ${project_output_path}
-	fi
-    cd ${project_source_path}
-    gradle assembleRelease
-    cp -r ${project_source_path}/build/outputs/apk ${project_output_path}
+function assemble_apps() {
+    if [ ! -d ${project_output_path} ]; then
+        mkdir -p ${project_output_path}
+    fi
+
+    cd ${global_project_temp_source_path}
+	gradle assembleRelease
+
+	cp ${global_project_temp_source_path}/build/outputs/apk/${app_name}_${android_version_name}.apk ${project_output_path}/${app_name}_${android_version_name}.apk
+	cp ${global_project_temp_source_path}/build/outputs/mapping/${app_name}/release/mapping.txt ${project_output_path}/mapping.txt
 }
+
+# 添加渠道信息
+# function add_channel_info() {
+# 	if [ -d ${global_project_temp_unzip_path} ]; then
+# 		rm -rf ${global_project_temp_unzip_path}
+# 	fi
+#     mkdir -p ${global_project_temp_unzip_path}
+
+# 	# 解压apk
+# 	temp_unzip_path="${global_project_temp_unzip_path}/${app_name}_${android_version_name}"
+# 	unzip -q ${global_project_temp_apk_name} -d ${temp_unzip_path}
+
+# 	current_time=`date +%Y%m%d%H%M`
+# 	final_apk_name="QingTingFm_${android_version_name}_${current_time}_${channel_letter}.apk"
+# 	if [ -d ${temp_unzip_path} ]; then 
+# 		channel_info_file_name="channelinfo_${channel_name}_${channel_letter}_no"
+# 		touch "${temp_unzip_path}/META-INF/${channel_info_file_name}"
+# 		cd ${temp_unzip_path}
+# 		zip -q -r ${final_apk_name} ./ 
+# 		cp ${final_apk_name} ${project_output_path}/QingTingFm_${android_version_name}_${current_time}_${channel_letter}.apk
+# 	fi
+# }
 
 date_start=$(date +%s) #脚本执行开始时间
 #声明全局变量
@@ -119,10 +158,17 @@ project_source_path="" #工程源码目录
 project_output_path="" #工程输出目录
 app_name="" #app名称
 
+global_project_temp_source_path="" #临时源代码目录，防止编译造成的更改污染源代码
+global_project_strings_path="" #project下strings.xml路径
+global_project_manifest_path="" #project下AndroidManifest.xml路径
+global_project_build_gradle_path="" #project下build.gradle路径
+
+
+
 #函数调用
-load_build_config
+init_build_config
 replace_project_config
-assemble_project
+assemble_apps
 
 date_end=$(date +%s)
 echo "total_time: $((date_end-date_start))s"
